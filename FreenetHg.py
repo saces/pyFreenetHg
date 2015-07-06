@@ -66,9 +66,21 @@ from mercurial import changelog
 from mercurial import commands
 from mercurial import localrepo
 from mercurial import manifest
-from mercurial import repo, util
+from mercurial import namespaces
+from mercurial import scmutil
+from mercurial import util
 from mercurial.node import bin
 from mercurial.util import version
+
+try:
+    from mercurial.error import RepoError
+except ImportError:
+    from mercurial.repo import RepoError
+
+#try:
+#    from mercurial.peer import peerrepository
+#except ImportError:
+#    from mercurial.repo import repository as peerrepository
 
 NEW_API_VERSION = '1.1'
 hg_version = version()
@@ -463,26 +475,44 @@ class fcprangereader(object):
                 self._ui.status("Succeeded: %d  -  Required: %d  -  Total: %d  -  Failed: %d  -  Final: %s\n" % (msg.getIntValue('Succeeded'), msg.getIntValue('Required'), msg.getIntValue('Total'), msg.getIntValue('FatallyFailed'), msg.getValue('FinalizedTotal')))
                 continue
 
+    def readlines(self):
+        return self.read().splitlines(True)
+
+    def __iter__(self):
+        return iter(self.readlines())
+
+    def close(self):
+        pass
 
 def build_opener(ui, fcpcache, fcpconnection, commandparams, auth):
 
-    def opener(base):
-        """return a function that opens files over fcp"""
-        p = base 
-        def o(path, mode="r"):
-            uri = p+'/'+ path 
+    class fcpvfs(scmutil.abstractvfs):
+        def __init__(self, base):
+            self.base = base
+
+        def __call__(self, path, mode='r', *args, **kw):
+            if mode not in ('r', 'rb'):
+                raise IOError('Permission denied')
+            uri = self.base+'/'+ path 
             return fcprangereader(ui, fcpcache, uri, fcpconnection, commandparams, auth)
-        return o
 
-    return opener
+        def join(self, path):
+            if path:
+                return os.path.join(self.base, path)
+            else:
+                return self.base
 
-def joiner(a,*p):
-        ret = a
-        for i in p:
-            ret += "/"+i
-            return ret
+    return fcpvfs
+
+class fcppeer(localrepo.localpeer):
+    def local(self):
+        return None
+    def canpush(self):
+        return False
 
 class fcprepository(localrepo.localrepository):
+    supported = localrepo.localrepository._basesupported
+
     def __init__(self, ui, freeneturi, fcpconnecton, commandparams, auth):
         if freeneturi[len(freeneturi)-1] == '/':
             self.path = freeneturi[:len(freeneturi)-1]
@@ -494,49 +524,54 @@ class fcprepository(localrepo.localrepository):
 
         opener = build_opener(ui, self._fcpcache, fcpconnecton, commandparams, auth)
         self.opener = opener(self.path)
+        self.vfs = self.opener
+
+        self._phasedefaults = []
+
+        self.names = namespaces.namespaces()
 
         # find requirements
         try:
-            requirements = self.opener("requires").read().splitlines()
+            requirements = scmutil.readrequires(self.vfs, self.supported)
         except IOError, inst:
             if inst.errno != errno.ENOENT:
                 raise
+            requirements = set()
+
             # check if it is a non-empty old-style repository
             try:
-                self.opener("00changelog.i").read(1)
+                fp = self.vfs("00changelog.i")
+                fp.read(1)
+                fp.close()
             except IOError, inst:
                 if inst.errno != errno.ENOENT:
                     raise
                 # we do not care about empty old-style repositories here
-                msg = _("'%s' does not appear to be an hg repository") % freeneturi
-                raise repo.RepoError(msg)
-            requirements = []
-
-        # check them
-        for r in requirements:
-            if r not in self.supported:
-                raise repo.RepoError(_("requirement '%s' not supported") % r)
+                msg = _("'%s' does not appear to be an hg repository") % self.path
+                raise RepoError(msg)
 
         # setup store
-        if hg_version < NEW_API_VERSION:
-            if "store" in requirements:
-                self.encodefn = util.encodefilename
-                self.decodefn = util.decodefilename
-                self.spath = self.path + "/store"
-            else:
-                self.encodefn = lambda x: x
-                self.decodefn = lambda x: x
-                self.spath = self.path
-            self.sopener = util.encodedopener(opener(self.spath), self.encodefn)
-        else:
-            self.sopener = store.store(requirements, self.path, opener, joiner).opener
+        self.store = store.store(requirements, self.path, opener)
+        self.spath = self.store.path
+        self.svfs = self.store.opener
+        self.sopener = self.svfs
+        self.sjoin = self.store.join
+        self._filecache = {}
+        self.requirements = requirements
 
-        self.manifest = manifest.manifest(self.sopener)
-        self.changelog = changelog.changelog(self.sopener)
-        self.tagscache = None
+        self.manifest = manifest.manifest(self.svfs)
+        self.changelog = changelog.changelog(self.svfs)
+        self._tags = None
         self.nodetagscache = None
+        self._branchcaches = {}
+        self._revbranchcache = None
         self.encodepats = None
         self.decodepats = None
+        self._transref = None
+
+    def _restrictcapabilities(self, caps):
+        caps = super(fcprepository, self)._restrictcapabilities(caps)
+        return caps.difference(["pushkey"])
 
     def url(self):
         return self.path
@@ -546,6 +581,9 @@ class fcprepository(localrepo.localrepository):
 
     def lock(self, wait=True):
         raise util.Abort(_('cannot lock fcp repository'))
+
+    def peer(self):
+        return fcppeer(self)
 
 def instance(ui, fcp_url, create):
     if create:
