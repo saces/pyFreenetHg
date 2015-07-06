@@ -1314,8 +1314,8 @@ def username_checker(ui, repo, hooktype, node=None, source=None, **kwargs):
 def fcp_setupwizz(ui, repo, **opts):
     """a setup wizzard for hgrc"""
 
-    def wizzpromt(msg, pat, default):
-        n = ui.prompt("%s: [%s] " % (msg, default), pat, default)
+    def wizzpromt(msg, default):
+        n = ui.prompt("%s: [%s] " % (msg, default), default)
         if n == default:
             return None
         return n
@@ -1356,7 +1356,7 @@ def fcp_setupwizz(ui, repo, **opts):
             tmpcfg.set('freenethg', 'commitusername', username)
             tmpcfg.set('ui', 'username', username)
 
-        newusername = wizzpromt("Enter username for freenet, used for commits", None, username)
+        newusername = wizzpromt("Enter username for freenet, used for commits", username)
         if newusername:
             tmpcfg.set('freenethg', 'commitusername', newusername)
             tmpcfg.set('ui', 'username', username)
@@ -1378,7 +1378,7 @@ def fcp_setupwizz(ui, repo, **opts):
         ui.write("\t+ set hook to '%s'\n" % (hookname))
         ui.write("\t- unset hook\n")
         ui.write("\t. leave unchanged\n")
-        hookcmd = ui.prompt("Choose [+-.]: [%s] " % (hookdefault), '[+-\.]', hookdefault)
+        hookcmd = ui.prompt("Choose [+-.]: [%s] " % (hookdefault), hookdefault)
 
         if hookcmd == '.':
             ui.write("leaving hook unchanged.\n")
@@ -1410,7 +1410,7 @@ def fcp_setupwizz(ui, repo, **opts):
         host = cfgget(tmpcfg, 'freenethg', 'fcphost')
         if not host:
             host = '-'
-        newhost = wizzpromt("Enter fcp host ('-' for default/environment settings)", None, host)
+        newhost = wizzpromt("Enter fcp host ('-' for default/environment settings)", host)
         if newhost:
             if newhost == '-':
                 tmpcfg.remove_option('freenethg', 'fcphost')
@@ -1422,7 +1422,7 @@ def fcp_setupwizz(ui, repo, **opts):
         port = cfgget(tmpcfg, 'freenethg', 'fcpport')
         if not port:
             port = '-'
-        newport = wizzpromt("Enter fcp port ('-' for default/environment settings)", None, port)
+        newport = wizzpromt("Enter fcp port ('-' for default/environment settings)", port)
         if newport:
             if newport == '-':
                 tmpcfg.remove_option('freenethg', 'fcpport')
@@ -1434,7 +1434,7 @@ def fcp_setupwizz(ui, repo, **opts):
         timeout = cfgget(tmpcfg, 'freenethg', 'fcptimeout')
         if not timeout:
             timeout = '-'
-        newtimeout = wizzpromt("Enter fcp timeout ('-' for default/environment settings)", None, timeout)
+        newtimeout = wizzpromt("Enter fcp timeout ('-' for default/environment settings)", timeout)
         if newtimeout:
             if newtimeout == '-':
                 tmpcfg.remove_option('freenethg', 'fcptimeout')
@@ -1446,7 +1446,7 @@ def fcp_setupwizz(ui, repo, **opts):
         ukw = cfgget(tmpcfg, 'freenethg', 'uploadkeyword')
         if not ukw:
             ukw = '-'
-        newukw = wizzpromt("Enter upload keyword ('-' to disable/remove)", None, ukw)
+        newukw = wizzpromt("Enter upload keyword ('-' to disable/remove)", ukw)
         if newukw:
             if newukw == '-':
                 tmpcfg.remove_option('freenethg', 'uploadkeyword')
@@ -1492,19 +1492,19 @@ def fcp_setupwizz(ui, repo, **opts):
         iuri = cfgget(tmpcfg, 'freenethg', 'inserturi')
         if not iuri:
             iuri = '.'
-        newiuri = wizzpromt("Enter insert uri ('.' for a generated one, '-' to remove)", None, iuri)
+        newiuri = wizzpromt("Enter insert uri ('.' for a generated one, '-' to remove)", iuri)
         if not newiuri and iuri == '.':
             newiuri = '.'
         if newiuri:
             if newiuri == '.':
                 if kpm:
-                    sitename = ui.prompt("Enter sitename for new uri:", None, "project-hg")
+                    sitename = ui.prompt("Enter sitename for new uri:", "project-hg")
                     u = 'U' + kpm.getValue('InsertURI')[1:] + sitename + '/1/'
                     ui.write("New insert uri: %s\n" % (u))
                     tmpcfg.set('freenethg', 'inserturi', u)
                     ui.write("Request uri is: %s\n" % ('U' + kpm.getValue('RequestURI')[1:] + sitename + '/1/'))
                 else:
-                    u = ui.prompt("Could not generate new keypair. Enter full uri:", None, "CHK@")
+                    u = ui.prompt("Could not generate new keypair. Enter full uri:", "CHK@")
                     tmpcfg.set('freenethg', 'inserturi', u)
             elif newiuri == '-':
                 tmpcfg.remove_option('freenethg', 'inserturi')
@@ -1535,7 +1535,7 @@ def fcp_setupwizz(ui, repo, **opts):
         ui.write("\t3 simple hook, does a incremental upload only if commit message contains upload keyword\n")
         ui.write("\t- unset hook\n")
         ui.write("\t. leave unchanged\n")
-        hookcmd = ui.prompt("Choose [123-.]: [%s] " % (hookdefault), '[123\-\.]', hookdefault)
+        hookcmd = ui.prompt("Choose [123-.]: [%s] " % (hookdefault), hookdefault)
 
         if hookcmd == '.':
             ui.write("leaving hook unchanged.\n")
