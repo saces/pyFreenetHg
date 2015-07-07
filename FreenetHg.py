@@ -9,7 +9,7 @@
 
 The FreenetHg extension adds an FCP url handler to access repositories
 with fcp://127.0.0.1:9481//freenetkey, allows to insert repositories to freenet,
-put/get bundles direct to freenet and send notifies on commit/bundle 
+put/get bundles direct to freenet and send notifies on commit/bundle
 upload to FMS.
 
 To load the FreenetHg.py extension, add it to your .hgrc file (you have
@@ -26,16 +26,16 @@ are defined for future use, but currently ignored. If the host or port is
 not given, the value from hgrc or environment is taken. If none is found,
 it defaults to 127.0.0.1:9481
 
-connection parameters. (have only effect if a new connections is created) 
-    FCPLog 
+connection parameters. (have only effect if a new connections is created)
+    FCPLog
         if the parameter is set, any value turns logging on (default: off)
     NoVersion
-        if the parameter is set, any value turns the fcp version check 
+        if the parameter is set, any value turns the fcp version check
         off (default: on)
     Timeout
         set timeout to the amount of seconds (default: 300)
 
-command parameters 
+command parameters
     Priority
         the priority class for the request (0...6) (default: 1)
     MaxRetries
@@ -113,7 +113,7 @@ class FCPLogger(object):
 
     def __init__(self, filename=None):
         self.logfile = sys.stdout
-    
+
     def write(self, line):
         self.logfile.write(line + '\n')
 
@@ -306,7 +306,7 @@ class FCPCommand(object):
         if self._items.has_key("DataLength"):
             return True
         else:
-            return False 
+            return False
 
 class FCPMessage(object):
     """class for node to client messages"""
@@ -317,7 +317,7 @@ class FCPMessage(object):
     def __init__(self, messagename, items, endmarker):
         self._messagename = messagename
         self._endmarker = endmarker
-        self._items = items 
+        self._items = items
 
     def isMessageName(self, testname):
         if self._messagename in testname:
@@ -327,7 +327,7 @@ class FCPMessage(object):
 
     def getMessageName(self):
         return self._messagename
-        
+
     def getIntValue(self, name):
         return int(self._items[name])
 
@@ -340,7 +340,7 @@ class FCPJob(object):
 
 class FCPSession(object):
     """class for managing/running FCPJobs on a single connection"""
-    
+
 # the stuff above is treated as lib, so it should not refer to hg or other non-python-builtin stuff
 
 # protocol handler for "fcp://... urls
@@ -388,12 +388,12 @@ def parseurl(fcp_url):
             i, v = p.split('=')
             commandparams[i] = v
 
-    auth = {}           
+    auth = {}
     if (tupleli.username) and (tupleli.password):
         auth['fcpuser'] = tupleli.username
         auth['fcppass'] = tupleli.password
     else:
-        auth = None         
+        auth = None
 
     return freeneturi, nodeconf, commandparams, auth
 
@@ -427,7 +427,7 @@ class fcprangereader(object):
         retdata = self._data[self._pos:(self._pos +bytes)]
         self._pos += bytes
         return retdata
-        
+
     def _getData(self):
         if self._data:
             return
@@ -455,7 +455,7 @@ class fcprangereader(object):
 
         while True:
             msg = self._fcpconnection.readEndMessage()
-        
+
             if msg.isMessageName('AllData'):
                 self._datasize = msg.getIntValue('DataLength')
                 self._data = self._fcpconnection.read(self._datasize)
@@ -464,13 +464,13 @@ class fcprangereader(object):
 
             if msg.isMessageName('ProtocolError'):
                 raise Exception("ProtocolError(%d) - %s: %s" % (msg.getIntValue('Code'), msg.getValue('CodeDescription'), msg.getValue('ExtraDescription')))
-            
+
             if msg.isMessageName('GetFailed'):
                 if (msg.getIntValue('Code')==27):
                     self._uri = msg.getValue('RedirectURI')
                     return self._getData()
                 raise Exception("GetFailed(%d) - %s: %s" % (msg.getIntValue('Code'), msg.getValue('ShortCodeDescription'), msg.getValue('CodeDescription')))
-        
+
             if msg.isMessageName('SimpleProgress'):
                 self._ui.status("Succeeded: %d  -  Required: %d  -  Total: %d  -  Failed: %d  -  Final: %s\n" % (msg.getIntValue('Succeeded'), msg.getIntValue('Required'), msg.getIntValue('Total'), msg.getIntValue('FatallyFailed'), msg.getValue('FinalizedTotal')))
                 continue
@@ -493,7 +493,7 @@ def build_opener(ui, fcpcache, fcpconnection, commandparams, auth):
         def __call__(self, path, mode='r', *args, **kw):
             if mode not in ('r', 'rb'):
                 raise IOError('Permission denied')
-            uri = self.base+'/'+ path 
+            uri = self.base+'/'+ path
             return fcprangereader(ui, fcpcache, uri, fcpconnection, commandparams, auth)
 
         def join(self, path):
@@ -593,13 +593,13 @@ def instance(ui, fcp_url, create):
     logger = None
     if nodeconf.get('fcplog'):
         logger = HgFCPLogger(ui)
-    conn = HgFCPConnection(logger, ui, **nodeconf) 
+    conn = HgFCPConnection(logger, ui, **nodeconf)
     return fcprepository(ui, freeneturi, conn, commandparams, auth)
 
 # protokol handler end
 
 class HgFCPConnection(FCPConnection):
-    
+
     def __init__(self, logger, ui, **opts):
 
         host = ui.config('freenethg', 'fcphost')
@@ -615,7 +615,7 @@ class HgFCPConnection(FCPConnection):
             timeout = os.environ.get("FCP_TIMEOUT", DEFAULT_FCP_TIMEOUT)
         if noversion == None:
             noversion = os.environ.get("FCP_NOVERSION", None)
-               
+
         # command line overwrites
         if opts.get('fcphost'):
             host = opts['fcphost']
@@ -625,27 +625,27 @@ class HgFCPConnection(FCPConnection):
             timeout = opts['fcptimeout']
         if opts.get('fcpnoversion'):
             noversion = True
-                
+
         FCPConnection.__init__(self, host, int(port), timeout, logger, noversion)
-        
+
 class HgFCPLogger(FCPLogger):
 
     def __init__(self, ui):
         FCPLogger.__init__(self, '-')
         self.ui = ui
-    
+
     def write(self, line):
         self.ui.write(line + '\n')
-            
-        
+
+
 def makeFCPLogger(ui, **opts):
     fcplogger = ui.config('freenethg', 'fcplog')
     if opts.get('fcplog'):
         fcplogger = HgFCPLogger(ui)
     return fcplogger
-        
+
 def hgBundlePut(ui, connection, uri, data, dontcompress):
-    
+
     putcmd = FCPCommand('ClientPut')
     putcmd.setItem('Verbosity', -1)
     putcmd.setItem('URI', uri)
@@ -658,21 +658,21 @@ def hgBundlePut(ui, connection, uri, data, dontcompress):
     putcmd.setItem('PriorityClass', '1')
     putcmd.setItem('UploadFrom', 'direct')
     putcmd.setItem('DataLength', len(data))
-    
+
     connection.sendCommand(putcmd, data)
 
     while True:
         msg = connection.readEndMessage()
-        
+
         if msg.isMessageName('PutFetchable') or msg.isMessageName('PutSuccessful'):
             return msg.getValue('URI')
-        
+
         if msg.isMessageName('ProtocolError'):
             raise Exception("ProtocolError(%d) - %s: %s" % (msg.getIntValue('Code'), msg.getValue('CodeDescription'), msg.getValue('ExtraDescription')))
-            
+
         if msg.isMessageName('PutFailed'):
             raise Exception("This should really not happen!")
-        
+
         if msg.isMessageName('SimpleProgress'):
             ui.status("Succeeded: %d  -  Required: %d  -  Total: %d  -  Failed: %d  -  Final: %s\n" % (msg.getIntValue('Succeeded'), msg.getIntValue('Required'), msg.getIntValue('Total'), msg.getIntValue('FatallyFailed'), msg.getValue('FinalizedTotal')))
             continue
@@ -680,37 +680,37 @@ def hgBundlePut(ui, connection, uri, data, dontcompress):
 #        print msg.getMessageName()
 
 def hgBundleGet(ui, connection, uri):
-    
+
     getcmd = FCPCommand('ClientGet')
     getcmd.setItem('Verbosity', -1)
     getcmd.setItem('URI', uri)
     getcmd.setItem('MaxRetries', 5)
     getcmd.setItem('PriorityClass', '1')
     getcmd.setItem('ReturnType', 'direct')
-    
+
     connection.sendCommand(getcmd)
-    
+
     while True:
         msg = connection.readEndMessage()
-        
+
         if msg.isMessageName('AllData'):
             size = msg.getIntValue('DataLength')
             return connection.read(size)
-        
+
         if msg.isMessageName('ProtocolError'):
             raise Exception("ProtocolError(%d) - %s: %s" % (msg.getIntValue('Code'), msg.getValue('CodeDescription'), msg.getValue('ExtraDescription')))
-            
+
         if msg.isMessageName('GetFailed'):
             if (msg.getIntValue('Code')==24):
                 return hgBundleGet(ui, connection, msg.getValue('RedirectURI'))
             raise Exception("GetFailed(%d) - %s: %s" % (msg.getIntValue('Code'), msg.getValue('ShortCodeDescription'), msg.getValue('CodeDescription')))
-        
+
         if msg.isMessageName('SimpleProgress'):
             ui.status("Succeeded: %d  -  Required: %d  -  Total: %d  -  Failed: %d  -  Final: %s\n" % (msg.getIntValue('Succeeded'), msg.getIntValue('Required'), msg.getIntValue('Total'), msg.getIntValue('FatallyFailed'), msg.getValue('FinalizedTotal')))
             continue
 
 #        print msg.getMessageName()
-            
+
 #
 # fcp rape end
 #
@@ -1266,19 +1266,19 @@ def updatestatic_hook3(ui, repo, hooktype, node=None, source=None, **kwargs):
 
 #        while True:
 #            msg = conn.readEndMessage()
-#        
+#
 #            if msg.isMessageName('PutSuccessful'):
 #                result = msg.getValue('URI')
 #                if None == hooktype:
 #                    ui.write("Insert Succeeded at: %s\n" % (result))
 #                break
-#        
+#
 #            if msg.isMessageName('ProtocolError'):
 #                raise Exception("ProtocolError(%d) - %s: %s" % (msg.getIntValue('Code'), msg.getValue('CodeDescription'), msg.getValue('ExtraDescription')))
-#            
+#
 #            if msg.isMessageName('PutFailed'):
 #                raise Exception("This should really not happen!")
-#        
+#
 #            if msg.isMessageName('SimpleProgress'):
 #                ui.status("Succeeded: %d  -  Required: %d  -  Total: %d  -  Failed: %d  -  Final: %s\n" % (msg.getIntValue('Succeeded'), msg.getIntValue('Required'), msg.getIntValue('Total'), msg.getIntValue('FatallyFailed'), msg.getValue('FinalizedTotal')))
 #                continue
@@ -1338,7 +1338,7 @@ def fcp_setupwizz(ui, repo, **opts):
         hgrcpath = repo.join("hgrc")
         if os.path.exists(hgrcpath):
             ui.warn('Config file already exist, comments will be lost on save! (^C to abort)\n')
-            tmpcfg.read(hgrcpath) 
+            tmpcfg.read(hgrcpath)
 
         # check sections.
         if not tmpcfg.has_section('ui'):
@@ -1347,7 +1347,7 @@ def fcp_setupwizz(ui, repo, **opts):
             tmpcfg.add_section('freenethg')
         if not tmpcfg.has_section('hooks'):
             tmpcfg.add_section('hooks')
-        
+
         # username
         username = cfgget(tmpcfg, 'freenethg', 'commitusername')
         if not username:
@@ -1466,7 +1466,7 @@ def fcp_setupwizz(ui, repo, **opts):
         #SiteToolPlugin
         stpFound = False
         #new keypair message
-        kpm = None    
+        kpm = None
         try:
             conn = FCPConnection(newhost, int(newport), newtimeout, None)
             ui.write("Connected to configured Node at '%s:%s' (timeout=%ss)\n" % (newhost, newport, newtimeout))
@@ -1475,7 +1475,7 @@ def fcp_setupwizz(ui, repo, **opts):
             conn.sendCommand(cmd)
             msg = conn.readEndMessage()
             if msg.isMessageName('SSKKeypair'):
-                kpm = msg                     
+                kpm = msg
             #goggle for SiteTollPlugin
             cmd = FCPCommand("GetPluginInfo")
             cmd.setItem('PluginName', 'plugins.SiteToolPlugin.SiteToolPlugin')
